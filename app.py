@@ -17,15 +17,11 @@ def map_info():
     except:
         return jsonify({'width': 1241, 'height': 1754})
 
-@app.route('/api/plots')
-def get_plots():
-    r = requests.get(f'{ADMIN}/api/plots', timeout=10)
-    return jsonify(r.json())
-
-@app.route('/api/owners')
-def get_owners():
-    r = requests.get(f'{ADMIN}/api/owners', timeout=10)
-    return jsonify(r.json())
+@app.route('/api/data')
+def get_data():
+    plots  = requests.get(f'{ADMIN}/api/plots',  timeout=15).json()
+    owners = requests.get(f'{ADMIN}/api/owners', timeout=15).json()
+    return jsonify({'plots': plots, 'owners': owners})
 
 @app.route('/static/uploads/<path:fn>')
 def serve_upload(fn):

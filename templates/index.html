@@ -347,10 +347,9 @@ function fitMap() {
 }
 
 async function loadData() {
-  [S.plots, S.owners] = await Promise.all([
-    apiFetch('/api/plots'),
-    apiFetch('/api/owners'),
-  ]);
+  const data = await apiFetch('/api/data');
+  S.plots  = data.plots  || [];
+  S.owners = data.owners || [];
   renderMap();
   renderOwners();
   renderPlotsTab();
