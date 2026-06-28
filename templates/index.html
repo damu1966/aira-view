@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIRA — One Farmers Association</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:       #0b1120;
+  --surface:  #131f35;
+  --card:     #1a2942;
+  --border:   #233354;
+  --accent:   #22c55e;
+  --amber:    #f59e0b;
+  --blue:     #3b82f6;
+  --red:      #ef4444;
+  --text:     #e2e8f0;
+  --muted:    #8fa3be;
+  --faint:    #3d5273;
+  --radius:   10px;
+  --panel-w:  360px;
+  --header-h: 52px;
+}
+html,body{height:100%;overflow:hidden;font-family:'Inter',system-ui,sans-serif;
+          background:var(--bg);color:var(--text);font-size:14px}
+input,button{font-family:inherit;font-size:inherit}
+
+.app-header{
+  height:var(--header-h);display:flex;align-items:center;gap:12px;
+  padding:0 16px;background:var(--surface);border-bottom:1px solid var(--border);
+  position:relative;z-index:1000;
+}
+.logo{font-weight:700;font-size:1rem;letter-spacing:.02em;white-space:nowrap;
+      display:flex;align-items:center;gap:8px}
+.logo em{font-style:normal;color:var(--accent)}
+.logo small{font-weight:400;color:var(--muted);font-size:.75rem}
+.view-badge{
+  background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.3);
+  border-radius:20px;padding:2px 10px;font-size:.68rem;font-weight:600;letter-spacing:.05em;
+}
+.header-stats{display:flex;gap:10px;margin-left:auto}
+.stat-chip{background:var(--card);border:1px solid var(--border);border-radius:20px;
+           padding:3px 11px;font-size:.73rem;color:var(--muted);white-space:nowrap}
+.stat-chip b{color:var(--text)}
+
+.app-body{display:flex;height:calc(100vh - var(--header-h));overflow:hidden}
+
+.map-panel{flex:1 1 auto;position:relative;overflow:hidden}
+#map{width:100%;height:100%;background:#060e1c}
+
+.map-toolbar{
+  position:absolute;top:12px;left:12px;z-index:900;
+  display:flex;flex-direction:column;gap:6px;
+}
+.map-toolbar .tb-group{display:flex;flex-direction:column;gap:1px;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.tb-btn{
+  width:36px;height:34px;display:flex;align-items:center;justify-content:center;
+  background:transparent;border:none;color:var(--text);cursor:pointer;
+  font-size:1.1rem;transition:background .15s;
+}
+.tb-btn:hover{background:var(--card)}
+
+.map-search{
+  position:absolute;top:12px;left:58px;z-index:900;display:flex;gap:0;
+}
+.map-search input{
+  width:180px;height:34px;background:var(--surface);border:1px solid var(--border);
+  border-radius:8px 0 0 8px;color:var(--text);padding:0 12px;outline:none;
+}
+.map-search input:focus{border-color:var(--accent)}
+.map-search button{
+  height:34px;padding:0 12px;background:var(--accent);border:none;border-radius:0 8px 8px 0;
+  color:#000;font-weight:600;cursor:pointer;white-space:nowrap;
+}
+.map-search button:hover{filter:brightness(1.1)}
+
+.legend{
+  position:absolute;bottom:16px;right:calc(var(--panel-w) + 16px);z-index:900;
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:8px 12px;display:flex;gap:14px;
+}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--muted)}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+
+.leaflet-control-zoom{display:none}
+.farm-map-img{image-rendering:auto}
+.plot-label-wrap{pointer-events:none}
+.plot-label-text{
+  font-family:'JetBrains Mono',monospace;font-size:.62rem;font-weight:700;
+  background:rgba(11,17,32,.75);color:#fff;border-radius:4px;
+  padding:1px 5px;white-space:nowrap;border:1px solid rgba(255,255,255,.2);
+  text-shadow:0 1px 2px rgba(0,0,0,.8);
+}
+
+.farm-popup .leaflet-popup-content-wrapper{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);padding:0;overflow:hidden;color:var(--text);
+}
+.farm-popup .leaflet-popup-tip-container{display:none}
+.farm-popup .leaflet-popup-content{margin:0;min-width:240px;max-width:290px}
+
+.popup-inner{padding:14px}
+.popup-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.popup-plot-id{
+  font-family:'JetBrains Mono',monospace;font-size:1.3rem;font-weight:700;
+  color:var(--accent);line-height:1
+}
+.popup-area{font-size:.73rem;color:var(--muted);text-align:right;line-height:1.4}
+.popup-area span{display:block;font-size:.68rem;opacity:.7}
+.popup-divider{border:none;border-top:1px solid var(--border);margin:10px 0}
+.popup-owner{display:flex;gap:12px;align-items:flex-start}
+.popup-avatar{width:44px;height:44px;border-radius:50%;flex-shrink:0;
+              display:flex;align-items:center;justify-content:center;
+              font-weight:700;font-size:.9rem;color:#fff}
+.popup-avatar img{width:44px;height:44px;border-radius:50%;object-fit:cover}
+.popup-owner-name{font-weight:600;font-size:.95rem;margin-bottom:4px;color:var(--text)}
+.popup-contact{font-size:.75rem;color:var(--muted);line-height:1.7;display:flex;flex-direction:column;gap:1px}
+.popup-notes{margin-top:6px;font-size:.72rem;color:var(--amber);
+             background:rgba(245,158,11,.1);border-radius:4px;padding:4px 6px}
+.popup-unassigned{display:flex;align-items:center;gap:8px;color:var(--muted);
+                  font-size:.82rem;padding:4px 0}
+
+.mgmt-panel{
+  width:var(--panel-w);flex-shrink:0;
+  background:var(--surface);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.panel-tabs{display:flex;border-bottom:1px solid var(--border)}
+.p-tab{
+  flex:1;height:38px;border:none;background:transparent;color:var(--muted);
+  font-weight:500;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;
+  font-size:.82rem;
+}
+.p-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.p-tab:hover:not(.active){color:var(--text)}
+
+.tab-content{display:none;flex:1;flex-direction:column;overflow:hidden}
+.tab-content.active{display:flex}
+
+.panel-search-bar{display:flex;gap:6px;padding:10px 12px;border-bottom:1px solid var(--border)}
+.panel-search-bar input{
+  flex:1;height:32px;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);padding:0 10px;outline:none;font-size:.82rem;
+}
+.panel-search-bar input:focus{border-color:var(--accent)}
+
+.owner-list{flex:1;overflow-y:auto;padding:8px}
+.owner-list::-webkit-scrollbar{width:5px}
+.owner-list::-webkit-scrollbar-track{background:transparent}
+.owner-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+.owner-card{
+  display:flex;align-items:flex-start;gap:10px;padding:10px;
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  margin-bottom:6px;cursor:default;transition:border-color .15s;
+}
+.owner-card:hover{border-color:var(--faint)}
+.owner-card.highlighted{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+
+.oc-avatar{
+  width:40px;height:40px;border-radius:50%;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-weight:700;font-size:.85rem;color:#fff;background:var(--faint);
+}
+
+.oc-body{flex:1;min-width:0}
+.oc-name{font-weight:600;font-size:.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oc-plots{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.oc-mobile{font-size:.72rem;color:var(--muted);margin-top:3px}
+.oc-notes{font-size:.7rem;color:var(--amber);margin-top:2px;
+          background:rgba(245,158,11,.1);border-radius:3px;padding:1px 5px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.plot-tag{
+  display:inline-block;font-family:'JetBrains Mono',monospace;font-size:.65rem;
+  font-weight:700;background:rgba(34,197,94,.15);color:var(--accent);
+  border:1px solid rgba(34,197,94,.3);border-radius:4px;padding:1px 5px;
+  cursor:pointer;transition:all .15s;line-height:1.5;
+}
+.plot-tag:hover{background:rgba(34,197,94,.3);border-color:var(--accent)}
+.no-plot{font-size:.7rem;color:var(--faint);font-style:italic}
+
+.oc-actions{display:flex;gap:4px;flex-shrink:0}
+.btn-icon{
+  width:26px;height:26px;border-radius:6px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);cursor:pointer;font-size:.8rem;
+  display:flex;align-items:center;justify-content:center;transition:all .15s;
+}
+.btn-icon.locate:hover{background:rgba(34,197,94,.15);color:var(--accent);border-color:var(--accent)}
+
+.plots-filter{display:flex;align-items:center;gap:8px;padding:8px 12px;
+              border-bottom:1px solid var(--border);font-size:.75rem;color:var(--muted)}
+.plots-filter label{display:flex;align-items:center;gap:6px;cursor:pointer}
+.filter-count{margin-left:auto;background:var(--card);border-radius:20px;
+              padding:1px 8px;font-size:.68rem;color:var(--muted)}
+
+.plot-row{
+  display:flex;align-items:center;gap:8px;padding:7px 12px;
+  border-bottom:1px solid rgba(35,51,84,.5);transition:background .1s;
+}
+.plot-row:hover{background:var(--card)}
+.pr-id{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.82rem;
+       min-width:52px;color:var(--accent)}
+.pr-owner{flex:1;font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pr-area{font-size:.7rem;color:var(--muted);min-width:80px;text-align:right}
+.pr-status{
+  padding:2px 8px;border-radius:5px;border:1px solid var(--border);
+  font-size:.65rem;font-weight:600;white-space:nowrap;
+}
+.pr-status.drawn{color:var(--accent);border-color:rgba(34,197,94,.3)}
+.pr-status.undrawn{color:var(--faint);border-color:var(--border)}
+
+.toast-wrap{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:9999;
+            display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:10px 18px;font-size:.82rem;font-weight:500;white-space:nowrap;
+  display:flex;align-items:center;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,.5);
+  animation:toastIn .2s ease;
+}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.toast.success{border-color:var(--accent);color:var(--accent)}
+.toast.error{border-color:var(--red);color:var(--red)}
+.toast.info{border-color:var(--blue);color:var(--blue)}
+
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;
+             height:160px;gap:8px;color:var(--faint);font-size:.82rem}
+.empty-state-icon{font-size:2rem;opacity:.4}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo">
+    🌾 <span style="font-weight:700;color:#fff">AIRA-ONE</span><span style="font-weight:400;color:var(--accent)"> FARMERS ASSOCIATION</span>
+    <small>Plot Directory</small>
+  </div>
+  <div class="view-badge">VIEW ONLY</div>
+  <div class="header-stats">
+    <div class="stat-chip"><b id="stat-plots">—</b> plots</div>
+    <div class="stat-chip"><b id="stat-owners">—</b> owners</div>
+    <div class="stat-chip"><b id="stat-assigned">—</b> assigned</div>
+    <div class="stat-chip"><b id="stat-drawn">—</b> regions mapped</div>
+  </div>
+</header>
+
+<div class="app-body">
+
+  <div class="map-panel">
+    <div id="map"></div>
+
+    <div class="map-toolbar">
+      <div class="tb-group">
+        <button class="tb-btn" title="Zoom In" onclick="map.zoomIn()">＋</button>
+        <button class="tb-btn" title="Zoom Out" onclick="map.zoomOut()">－</button>
+        <button class="tb-btn" title="Fit to view" onclick="fitMap()">⊙</button>
+      </div>
+    </div>
+
+    <div class="map-search" style="left:58px">
+      <input type="text" id="map-search" placeholder="Jump to plot (A01, B07…)"
+             onkeydown="if(event.key==='Enter')jumpToPlot()">
+      <button onclick="jumpToPlot()">Go</button>
+    </div>
+
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div>Assigned</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#94a3b8"></div>Unassigned</div>
+    </div>
+  </div>
+
+  <div class="mgmt-panel">
+    <div class="panel-tabs">
+      <button class="p-tab active" id="tab-btn-owners" onclick="setTab('owners')">👤 Owners</button>
+      <button class="p-tab" id="tab-btn-plots" onclick="setTab('plots')">🗺️ Plots</button>
+    </div>
+
+    <div class="tab-content active" id="tab-owners">
+      <div class="panel-search-bar">
+        <input type="text" id="owner-search" placeholder="Search name, mobile, plot…"
+               oninput="renderOwners()">
+      </div>
+      <div class="owner-list" id="owners-list"></div>
+    </div>
+
+    <div class="tab-content" id="tab-plots">
+      <div class="panel-search-bar">
+        <input type="text" id="plot-search" placeholder="Filter plots…" oninput="renderPlotsTab()">
+      </div>
+      <div class="plots-filter">
+        <label>
+          <input type="checkbox" id="filter-undrawn" onchange="renderPlotsTab()">
+          Undrawn only
+        </label>
+        <label style="margin-left:8px">
+          <input type="checkbox" id="filter-unassigned" onchange="renderPlotsTab()">
+          Unassigned
+        </label>
+        <span class="filter-count" id="plot-count">—</span>
+      </div>
+      <div class="owner-list" id="plots-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const S = {
+  plots: [], owners: [],
+  mapInfo: { width: 1241, height: 1754 },
+  layers: new Map(),
+  labelLayers: new Map(),
+  activeTab: 'owners',
+};
+
+const map = L.map('map', {
+  crs: L.CRS.Simple,
+  zoomSnap: 0.25, zoomDelta: 0.5,
+  minZoom: -4, maxZoom: 4,
+  attributionControl: false,
+  doubleClickZoom: false,
+});
+
+const plotsLayer = L.layerGroup().addTo(map);
+const labelsLayer = L.layerGroup().addTo(map);
+
+async function initMap() {
+  const info = await apiFetch('/api/map-info');
+  S.mapInfo = info;
+  const { width: W, height: H } = info;
+  const bounds = [[0, 0], [H, W]];
+  L.imageOverlay('/static/farm_map.png', bounds, { className: 'farm-map-img' }).addTo(map);
+  map.fitBounds(bounds, { padding: [10, 10] });
+  map.setMaxBounds([[-200, -200], [H + 200, W + 200]]);
+}
+
+function fitMap() {
+  const { width: W, height: H } = S.mapInfo;
+  map.fitBounds([[0, 0], [H, W]], { padding: [10, 10], animate: true });
+}
+
+async function loadData() {
+  [S.plots, S.owners] = await Promise.all([
+    apiFetch('/api/plots'),
+    apiFetch('/api/owners'),
+  ]);
+  renderMap();
+  renderOwners();
+  renderPlotsTab();
+  updateStats();
+}
+
+function updateStats() {
+  const total    = S.plots.length;
+  const assigned = S.plots.filter(p => p.owner).length;
+  const drawn    = S.plots.filter(p => p.polygon_coords && p.polygon_coords.length >= 3).length;
+  document.getElementById('stat-plots').textContent    = total;
+  document.getElementById('stat-owners').textContent   = S.owners.length;
+  document.getElementById('stat-assigned').textContent = assigned;
+  document.getElementById('stat-drawn').textContent    = drawn;
+  document.getElementById('tab-btn-owners').textContent = `👤 Owners (${S.owners.length})`;
+  document.getElementById('tab-btn-plots').textContent  = `🗺️ Plots (${total})`;
+}
+
+const OWNER_COLORS = [
+  '#22c55e','#3b82f6','#a855f7','#ec4899','#f97316',
+  '#06b6d4','#eab308','#ef4444','#14b8a6','#8b5cf6',
+];
+function ownerColor(id) {
+  return id ? OWNER_COLORS[(id - 1) % OWNER_COLORS.length] : '#94a3b8';
+}
+
+function renderMap() {
+  plotsLayer.clearLayers();
+  labelsLayer.clearLayers();
+  S.layers.clear(); S.labelLayers.clear();
+
+  S.plots.forEach(plot => {
+    const coords = plot.polygon_coords;
+    if (!coords || coords.length < 3) return;
+
+    const color = ownerColor(plot.owner ? plot.owner.id : null);
+    const fillAlpha = plot.owner ? 0.22 : 0.12;
+
+    const poly = L.polygon(coords, {
+      color, weight: 2,
+      fillColor: color, fillOpacity: fillAlpha,
+    });
+
+    poly.on('mouseover', () => {
+      poly.setStyle({ fillOpacity: 0.45, weight: 3, color: '#fbbf24' });
+      poly.bringToFront();
+    });
+    poly.on('mouseout', () => {
+      poly.setStyle({ fillOpacity: fillAlpha, weight: 2, color });
+    });
+    poly.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      showPopup(plot, e.latlng);
+    });
+
+    poly.addTo(plotsLayer);
+    S.layers.set(plot.plot_no, poly);
+
+    try {
+      const center = poly.getBounds().getCenter();
+      const lbl = L.marker(center, {
+        icon: L.divIcon({
+          className: 'plot-label-wrap',
+          html: `<div class="plot-label-text">${plot.plot_no}</div>`,
+          iconSize: [50, 18], iconAnchor: [25, 9],
+        }),
+        interactive: false,
+      }).addTo(labelsLayer);
+      S.labelLayers.set(plot.plot_no, lbl);
+    } catch(e) {}
+  });
+}
+
+function showPopup(plot, latlng) {
+  const o = plot.owner;
+  const area = plot.area_sqft
+    ? `${Number(plot.area_sqft).toLocaleString()} sq ft` : '—';
+  const sqm = plot.area_sqft
+    ? `<span>${(plot.area_sqft * 0.0929).toFixed(0)} m²</span>` : '';
+  const surveyBadge = plot.survey_no
+    ? `<span style="font-size:.68rem;color:var(--muted)">Survey No. ${plot.survey_no}</span>` : '';
+
+  const initials = o ? (o.name||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '?';
+  const bgColor  = ownerColor(o ? o.id : null);
+  const avatarHtml = o && o.photo
+    ? `<img src="/static/uploads/${o.photo}" alt="${o.name}">`
+    : `<div style="width:44px;height:44px;border-radius:50%;background:${bgColor};
+                   display:flex;align-items:center;justify-content:center;
+                   font-weight:700;color:#fff;font-size:.85rem">${initials}</div>`;
+
+  const ownerSection = o ? `
+    <div class="popup-owner">
+      <div class="popup-avatar">${avatarHtml}</div>
+      <div>
+        <div class="popup-owner-name">${o.name || '(Unknown)'}</div>
+        <div class="popup-contact">
+          ${o.mobile  ? `<span>📱 ${o.mobile}</span>` : ''}
+          ${o.email   ? `<span>✉️ ${o.email}</span>` : ''}
+        </div>
+        ${o.notes ? `<div class="popup-notes">${o.notes}</div>` : ''}
+      </div>
+    </div>` : `
+    <div class="popup-unassigned">⚠️ No owner assigned</div>`;
+
+  const html = `
+    <div class="popup-inner">
+      <div class="popup-head">
+        <div>
+          <div class="popup-plot-id">${plot.plot_no}</div>
+          ${surveyBadge}
+        </div>
+        <div class="popup-area">${area}${sqm}</div>
+      </div>
+      <hr class="popup-divider">
+      ${ownerSection}
+    </div>`;
+
+  L.popup({ className: 'farm-popup', closeButton: false, offset: [0, -5] })
+    .setLatLng(latlng).setContent(html).openOn(map);
+}
+
+function jumpToPlot() {
+  const q = document.getElementById('map-search').value.trim().toUpperCase();
+  if (!q) return;
+  const layer = S.layers.get(q);
+  if (layer) {
+    map.fitBounds(layer.getBounds(), { padding: [80, 80], maxZoom: 1.5, animate: true });
+    const center = layer.getBounds().getCenter();
+    const plot = S.plots.find(p => p.plot_no === q);
+    if (plot) setTimeout(() => showPopup(plot, center), 300);
+    toast(`Found ${q}`, 'success', 1500);
+  } else if (S.plots.find(p => p.plot_no === q)) {
+    toast(`${q} exists but has no boundary drawn yet`, 'info', 3000);
+  } else {
+    toast(`Plot "${q}" not found`, 'error', 2000);
+  }
+}
+
+function highlightPlot(plotNo) {
+  const layer = S.layers.get(plotNo);
+  if (!layer) { toast(`${plotNo} has no boundary drawn yet`, 'info', 2000); return; }
+  map.fitBounds(layer.getBounds(), { padding: [100, 100], maxZoom: 1, animate: true });
+  const plot = S.plots.find(p => p.plot_no === plotNo);
+  const center = layer.getBounds().getCenter();
+  setTimeout(() => { if (plot) showPopup(plot, center); }, 400);
+}
+
+function renderOwners() {
+  const q = (document.getElementById('owner-search')?.value || '').toLowerCase();
+  const list = document.getElementById('owners-list');
+
+  const filtered = S.owners.filter(o => {
+    if (!q) return true;
+    return (o.owner_name||'').toLowerCase().includes(q) ||
+           (o.mobile_primary||'').includes(q) ||
+           (o.email_primary||'').toLowerCase().includes(q) ||
+           (o.plot_nos||'').toLowerCase().includes(q);
+  });
+
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">👤</div>No owners found</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(o => {
+    const name = o.owner_name || '(Unknown)';
+    const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    const color = ownerColor(o.owner_id);
+
+    const plotTags = o.plot_nos
+      ? o.plot_nos.split(',').filter(Boolean).map(p =>
+          `<span class="plot-tag" onclick="highlightPlot('${p.trim()}')">${p.trim()}</span>`
+        ).join('')
+      : `<span class="no-plot">No plot assigned</span>`;
+
+    return `
+      <div class="owner-card" id="oc-${o.owner_id}">
+        <div class="oc-avatar" style="background:${color}">${
+          o.photo
+            ? `<img src="/static/uploads/${o.photo}" alt="${name}" style="width:40px;height:40px;border-radius:50%;object-fit:cover">`
+            : initials
+        }</div>
+        <div class="oc-body">
+          <div class="oc-name">${name}</div>
+          <div class="oc-plots">${plotTags}</div>
+          ${o.mobile_primary ? `<div class="oc-mobile">📱 ${o.mobile_primary}${o.mobile_secondary ? ' / '+o.mobile_secondary:''}</div>` : ''}
+          ${o.email_primary  ? `<div class="oc-mobile">✉️ ${o.email_primary}</div>` : ''}
+          ${o.notes          ? `<div class="oc-notes">${o.notes}</div>` : ''}
+        </div>
+        <div class="oc-actions">
+          <button class="btn-icon locate" title="Locate on map"
+            onclick="locateOwner(${o.owner_id})">📍</button>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function locateOwner(ownerId) {
+  const o = S.owners.find(x => x.owner_id === ownerId);
+  if (!o || !o.plot_nos) { toast('No plots assigned to this owner', 'info'); return; }
+  const plotNos = o.plot_nos.split(',').filter(Boolean).map(p => p.trim());
+  let foundBounds = null;
+  plotNos.forEach(p => {
+    const layer = S.layers.get(p);
+    if (layer) {
+      if (!foundBounds) foundBounds = layer.getBounds();
+      else foundBounds.extend(layer.getBounds());
+    }
+  });
+  if (foundBounds) {
+    map.fitBounds(foundBounds, { padding: [80, 80], maxZoom: 1.5, animate: true });
+    const plot = S.plots.find(p => p.plot_no === plotNos[0]);
+    const layer = S.layers.get(plotNos[0]);
+    if (plot && layer) {
+      const center = layer.getBounds().getCenter();
+      setTimeout(() => showPopup(plot, center), 400);
+    }
+  } else {
+    toast(`Plots ${plotNos.join(', ')} have no boundaries drawn yet`, 'info', 3000);
+  }
+  document.querySelectorAll('.owner-card').forEach(el => el.classList.remove('highlighted'));
+  const card = document.getElementById(`oc-${ownerId}`);
+  if (card) { card.classList.add('highlighted'); card.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+}
+
+function renderPlotsTab() {
+  const q = (document.getElementById('plot-search')?.value || '').toLowerCase();
+  const onlyUndrawn    = document.getElementById('filter-undrawn')?.checked;
+  const onlyUnassigned = document.getElementById('filter-unassigned')?.checked;
+
+  let filtered = S.plots.filter(p => {
+    if (q && !p.plot_no.toLowerCase().includes(q) &&
+        !(p.owner && (p.owner.name||'').toLowerCase().includes(q))) return false;
+    if (onlyUndrawn && p.polygon_coords && p.polygon_coords.length >= 3) return false;
+    if (onlyUnassigned && p.owner) return false;
+    return true;
+  });
+
+  document.getElementById('plot-count').textContent = filtered.length;
+
+  const list = document.getElementById('plots-list');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🗺️</div>No plots match filter</div>`;
+    return;
+  }
+
+  list.innerHTML = filtered.map(p => {
+    const drawn = p.polygon_coords && p.polygon_coords.length >= 3;
+    const area  = p.area_sqft ? `${Number(p.area_sqft).toLocaleString()} sqft` : '—';
+    const surveyLabel = p.survey_no
+      ? `<span style="font-size:.65rem;color:var(--muted);margin-left:4px">S.No.${p.survey_no}</span>` : '';
+    const ownerName = p.owner
+      ? p.owner.name
+      : '<span style="color:var(--faint);font-style:italic">Unassigned</span>';
+    return `
+      <div class="plot-row">
+        <span class="pr-id" onclick="highlightPlot('${p.plot_no}')" style="cursor:pointer">${p.plot_no}${surveyLabel}</span>
+        <span class="pr-owner">${ownerName}</span>
+        <span class="pr-area">${area}</span>
+        <span class="pr-status ${drawn ? 'drawn' : 'undrawn'}">${drawn ? '✓ Mapped' : 'Unmapped'}</span>
+      </div>`;
+  }).join('');
+}
+
+function setTab(tab) {
+  S.activeTab = tab;
+  document.querySelectorAll('.p-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById(`tab-btn-${tab}`).classList.add('active');
+  document.getElementById(`tab-${tab}`).classList.add('active');
+}
+
+async function apiFetch(url, method = 'GET', body = null) {
+  const opts = { method, headers: {} };
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  const res = await fetch(url, opts);
+  return res.json();
+}
+
+function toast(msg, type = 'info', ms = 2500) {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type === 'success' ? '✓' : type === 'error' ? '✕' : 'ℹ'}</span> ${msg}`;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), ms + 300);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') map.closePopup();
+});
+
+(async () => {
+  await initMap();
+  await loadData();
+})();
+</script>
+</body>
+</html>
