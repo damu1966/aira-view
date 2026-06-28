@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AIRA — Login</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b1120;--surface:#131f35;--card:#1a2942;--border:#233354;
+  --accent:#22c55e;--red:#ef4444;--text:#e2e8f0;--muted:#8fa3be;
+}
+html,body{height:100%;font-family:'Inter',system-ui,sans-serif;
+          background:var(--bg);color:var(--text);font-size:14px}
+.page{display:flex;flex-direction:column;align-items:center;
+      justify-content:center;min-height:100vh;padding:20px}
+.brand{text-align:center;margin-bottom:32px}
+.brand-icon{font-size:2.5rem;margin-bottom:10px}
+.brand-name{font-size:1.3rem;font-weight:700;letter-spacing:.02em}
+.brand-name span{color:var(--accent)}
+.brand-sub{font-size:.8rem;color:var(--muted);margin-top:4px}
+.login-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:28px;width:100%;max-width:360px;
+  box-shadow:0 24px 64px rgba(0,0,0,.5);
+}
+.login-box h2{font-size:1rem;font-weight:600;margin-bottom:20px;text-align:center;color:var(--muted)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:5px;font-weight:500}
+.form-group input{
+  width:100%;background:var(--card);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);padding:9px 12px;outline:none;font-size:.9rem;
+  transition:border-color .15s;
+}
+.form-group input:focus{border-color:var(--accent)}
+.btn-login{
+  width:100%;padding:10px;background:var(--accent);color:#000;border:none;
+  border-radius:8px;font-weight:700;font-size:.9rem;cursor:pointer;
+  margin-top:6px;transition:filter .15s;
+}
+.btn-login:hover{filter:brightness(1.1)}
+.error{
+  background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);
+  color:var(--red);border-radius:8px;padding:8px 12px;
+  font-size:.8rem;margin-bottom:14px;text-align:center;
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="brand">
+    <div class="brand-icon">🌾</div>
+    <div class="brand-name">AIRA-ONE <span>FARMERS ASSOCIATION</span></div>
+    <div class="brand-sub">Plot Directory — Member Access</div>
+  </div>
+  <div class="login-box">
+    <h2>Sign in to continue</h2>
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="POST">
+      <div class="form-group">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Enter username" autofocus autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Enter password" autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn-login">Sign In</button>
+    </form>
+  </div>
+</div>
+</body>
+</html>
